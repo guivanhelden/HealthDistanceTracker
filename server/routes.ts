@@ -168,7 +168,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: 'Invalid client ID' });
       }
       
-      const limit = req.query.limit ? parseInt(req.query.limit as string) : 2;
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 3;
       const result = await getClienteAnalysis(id, limit);
       
       if (!result.success) {

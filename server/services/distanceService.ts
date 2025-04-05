@@ -73,17 +73,22 @@ export async function calculateAndStoreDistances(clienteId: number): Promise<boo
     // Sort providers by distance (closest first)
     const sortedResults = distanceResults.sort((a, b) => a.distance - b.distance);
 
-    // Store results in the database with ranking
-    const analysisPromises = sortedResults.map(async (result, index) => {
-      const analiseData: InsertAnaliseDistancia = {
+    // Limit to only top 3 closest providers
+    const topProviders = sortedResults.slice(0, 3);
+    
+    // Store only top 3 results in the database with ranking
+    const analysisPromises = topProviders.map(async (result, index) => {
+      // Preparar os dados para inserção
+      const distanciaStr = result.distance.toString();
+      const analiseData = {
         cliente_id: cliente.id,
         prestador_id: result.prestador.id,
-        distancia_km: result.distance,
+        distancia_km: distanciaStr,
         posicao_ranking: index + 1, // Ranking starts at 1
-        cliente_latitude: Number(cliente.cliente_latitude),
-        cliente_longitude: Number(cliente.cliente_longitude),
-        prestador_latitude: Number(result.prestador.prestador_latitude),
-        prestador_longitude: Number(result.prestador.prestador_longitude),
+        cliente_latitude: cliente.cliente_latitude?.toString() || "0",
+        cliente_longitude: cliente.cliente_longitude?.toString() || "0",
+        prestador_latitude: result.prestador.prestador_latitude?.toString() || "0",
+        prestador_longitude: result.prestador.prestador_longitude?.toString() || "0",
         cliente_nome: cliente.nome || '',
         cliente_cep: cliente.cep || '',
         cliente_uf: cliente.uf || '',
@@ -92,7 +97,7 @@ export async function calculateAndStoreDistances(clienteId: number): Promise<boo
         prestador_uf: result.prestador.uf || '',
         planos: Array.isArray(result.prestador.planos) ? result.prestador.planos.join(', ') : '',
         especialidade: Array.isArray(result.prestador.especialidades) ? result.prestador.especialidades.join(', ') : ''
-      };
+      } as InsertAnaliseDistancia;
 
       await storage.createAnalise(analiseData);
     });
@@ -143,7 +148,7 @@ export async function calculateAllDistances(): Promise<{
 /**
  * Gets analysis for a specific client with top N closest providers
  */
-export async function getClienteAnalysis(clienteId: number, limit = 2): Promise<any> {
+export async function getClienteAnalysis(clienteId: number, limit = 3): Promise<any> {
   try {
     // Find existing analysis for this client
     const existingAnalysis = await storage.getTopPrestadoresByClienteId(clienteId, limit);
