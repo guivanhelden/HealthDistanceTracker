@@ -1,0 +1,117 @@
+Crie um aplicativo analise de distancia cliente hospital: use React, Supabase, Mapbox e nas APIs do Google (Geocode, Distance Matrix)
+
+Carregue dados de clientes e prestadores das tabelas Supabase:
+
+base_rubayia_cpf (clientes)
+
+rede_bronze_amil_resumida (prestadores)
+
+Calcule a distância entre cada cliente e prestador usando:
+
+Google Distance Matrix (ou fórmula haversine como fallback).
+
+Grave o resultado na tabela analise_distancia_ps, incluindo:
+
+Distância em KM
+
+Ranking de proximidade (1º, 2º.)
+
+Exiba tudo no Mapbox, mostrando:
+
+Marcadores para cada cliente e prestador.
+
+Um círculo de 7km em vermelho (semitransparente) em volta de cada prestador.
+
+Foco inicial ou pins principais nas cidades de São Paulo, Rio de Janeiro e Brasília.
+
+Gere um relatório (tela ou PDF) listando, para cada cliente, os 2 prestadores mais próximos e suas distâncias.
+
+Explique como fazer:
+
+A configuração das variáveis de ambiente (Mapbox, Google API Keys, Supabase).
+
+A estrutura do app React (páginas, componentes, conexão Supabase).
+
+O deploy na plataforma (Bolt ou Looveble).
+
+Ordenar e armazenar os prestadores mais próximos.
+
+Gerar o relatório final.
+
+google
+API_KEY = 'AIzaSyCUkiOKvorfH6hVfw7Z1uiVQkKPv-XVt7w';
+
+https://maps.googleapis.com/maps/api/geocode/json
+https://maps.googleapis.com/maps/api/distancematrix/json
+
+const supabaseUrl = 'https://prkpjleyzzdnqxhgmnbp.supabase.co';
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBya3BqbGV5enpkbnF4aGdtbmJwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDIyMTgxODMsImV4cCI6MjA1Nzc5NDE4M30.LXp4NFhDvicu_bmvP0ibfcsr_wPAVIBpKWN82Y25IDQ';
+
+mapbox = pk.eyJ1IjoiZ3VpdmFuaGVsZGVuIiwiYSI6ImNtOGRpOHA0dTA2eXYybnB1cGZpdXE5amoifQ.AaT1j9pOdFhZwKS-H2Xfcw
+
+
+Estrutura do Banco de Dados (Supabase)
+1. Tabela base_rubayia_cpf (clientes)
+json
+Copiar
+Editar
+[
+  { "column_name": "id",                "data_type": "bigint" },
+  { "column_name": "created_at",        "data_type": "timestamp with time zone" },
+  { "column_name": "cliente_latitude",  "data_type": "numeric" },
+  { "column_name": "cliente_longitude", "data_type": "numeric" },
+  { "column_name": "prestador_id",      "data_type": "integer" },
+  { "column_name": "updated_at",        "data_type": "timestamp with time zone" },
+  { "column_name": "distancia_prestador","data_type": "numeric" },
+  { "column_name": "posicao_ranking",   "data_type": "integer" },
+  { "column_name": "plano",             "data_type": "jsonb" },
+  { "column_name": "data_nascimento",   "data_type": "date" },
+  { "column_name": "idade",             "data_type": "integer" },
+  { "column_name": "estabelecimento",   "data_type": "text" },
+  { "column_name": "cnpj",             "data_type": "text" },
+  { "column_name": "nome",             "data_type": "text" },
+  { "column_name": "uf",               "data_type": "text" },
+  { "column_name": "nome_prestador",   "data_type": "text" },
+  { "column_name": "cep",              "data_type": "character varying" },
+  { "column_name": "sexo",             "data_type": "text" }
+]
+2. Tabela rede_bronze_amil_resumida (prestadores)
+json
+Copiar
+Editar
+[
+  { "column_name": "id",                 "data_type": "integer" },
+  { "column_name": "created_at",         "data_type": "timestamp with time zone" },
+  { "column_name": "prestador_latitude", "data_type": "numeric" },
+  { "column_name": "prestador_longitude","data_type": "numeric" },
+  { "column_name": "uf",                 "data_type": "text" },
+  { "column_name": "municipio",          "data_type": "text" },
+  { "column_name": "cep",                "data_type": "text" },
+  { "column_name": "especialidades",     "data_type": "ARRAY" },
+  { "column_name": "planos",            "data_type": "ARRAY" },
+  { "column_name": "tipo_servico",       "data_type": "text" },
+  { "column_name": "nome_prestador",     "data_type": "text" }
+]
+3. Tabela analise_distancia_ps (análise de distância – resultados)
+json
+Copiar
+Editar
+[
+  { "column_name": "id",                  "data_type": "integer" },
+  { "column_name": "cliente_id",          "data_type": "integer" },
+  { "column_name": "prestador_id",        "data_type": "integer" },
+  { "column_name": "distancia_km",        "data_type": "numeric" },
+  { "column_name": "posicao_ranking",     "data_type": "integer" },
+  { "column_name": "data_analise",        "data_type": "timestamp with time zone" },
+  { "column_name": "cliente_latitude",    "data_type": "numeric" },
+  { "column_name": "cliente_longitude",   "data_type": "numeric" },
+  { "column_name": "prestador_latitude",  "data_type": "numeric" },
+  { "column_name": "prestador_longitude", "data_type": "numeric" },
+  { "column_name": "cliente_nome",        "data_type": "character varying" },
+  { "column_name": "cliente_cep",         "data_type": "character varying" },
+  { "column_name": "cliente_uf",          "data_type": "character varying" },
+  { "column_name": "prestador_nome",      "data_type": "character varying" },
+  { "column_name": "prestador_cep",       "data_type": "character varying" },
+  { "column_name": "prestador_uf",        "data_type": "character varying" },
+  { "column_name": "planos",              "data_type": "text" },
+  { "column_name": "especialidade",       "data_type": "text" }
