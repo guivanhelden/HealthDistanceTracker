@@ -12,7 +12,14 @@ import { Button } from "@/components/ui/button";
 import { Download, FileText } from 'lucide-react';
 import { AnaliseDistancia } from '@/lib/supabase';
 import jsPDF from 'jspdf';
+// Importando jspdf-autotable corretamente
 import 'jspdf-autotable';
+// Adicionar tipagem para o método autoTable
+declare module 'jspdf' {
+  interface jsPDF {
+    autoTable: (options: any) => jsPDF;
+  }
+}
 
 interface ReportTableProps {
   data: {
@@ -63,7 +70,7 @@ export default function ReportTable({ data, isLoading, onShowDetails }: ReportTa
     });
     
     // Add table
-    (doc as any).autoTable({
+    doc.autoTable({
       startY: 30,
       head: [['Cliente', 'UF', 'Prestador #1', 'Distância', 'Prestador #2', 'Distância']],
       body: tableData,
