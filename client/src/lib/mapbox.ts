@@ -30,17 +30,22 @@ export function initializeMap(containerId: string, options: {
   zoom?: number,
   style?: string
 } = {}): mapboxgl.Map {
-  const defaultOptions = {
-    center: [CITY_COORDINATES['São Paulo'].lng, CITY_COORDINATES['São Paulo'].lat],
-    zoom: 10,
-    style: 'mapbox://styles/mapbox/streets-v11'
-  };
-
-  const mapOptions = { ...defaultOptions, ...options };
-
+  // Default coordinates for São Paulo
+  const defaultCenter: [number, number] = [
+    CITY_COORDINATES['São Paulo'].lng, 
+    CITY_COORDINATES['São Paulo'].lat
+  ];
+  
+  // Default map options
+  const defaultZoom = 10;
+  const defaultStyle = 'mapbox://styles/mapbox/streets-v11';
+  
+  // Create new map instance
   return new mapboxgl.Map({
     container: containerId,
-    ...mapOptions
+    center: options.center || defaultCenter,
+    zoom: options.zoom || defaultZoom,
+    style: options.style || defaultStyle
   });
 }
 
@@ -90,6 +95,38 @@ export function addMarkersToMap(map: mapboxgl.Map, locations: MapLocation[]): ma
 }
 
 /**
+ * Creates a circular polygon with given km radius around a center point
+ */
+function createGeoJSONCircle(center: [number, number], radiusKm: number): GeoJSON.Feature {
+  const points = 64; // Number of points for the circle
+  const km = radiusKm;
+  const distanceX = km / (111.320 * Math.cos(center[1] * Math.PI / 180));
+  const distanceY = km / 110.574;
+
+  let coordinates: [number, number][] = [];
+  
+  // Generate points in a circle
+  for (let i = 0; i < points; i++) {
+    const angle = (i * 2 * Math.PI) / points;
+    const x = center[0] + distanceX * Math.cos(angle);
+    const y = center[1] + distanceY * Math.sin(angle);
+    coordinates.push([x, y]);
+  }
+  
+  // Close the circle
+  coordinates.push(coordinates[0]);
+
+  return {
+    type: 'Feature',
+    geometry: {
+      type: 'Polygon',
+      coordinates: [coordinates]
+    },
+    properties: {}
+  };
+}
+
+/**
  * Adds a circle around a provider indicating coverage area
  */
 export function addProviderCircle(map: mapboxgl.Map, location: MapLocation, radiusKm = 7): void {
@@ -99,36 +136,35 @@ export function addProviderCircle(map: mapboxgl.Map, location: MapLocation, radi
     return;
   }
 
+  // Create a GeoJSON circle with accurate radius in kilometers
+  const circleFeature = createGeoJSONCircle(
+    [location.longitude, location.latitude], 
+    radiusKm
+  );
+
   map.addSource(sourceId, {
     type: 'geojson',
-    data: {
-      type: 'Feature',
-      geometry: {
-        type: 'Point',
-        coordinates: [location.longitude, location.latitude]
-      },
-      properties: {}
-    }
+    data: circleFeature as any
   });
 
   map.addLayer({
     id: `circle-fill-${location.id}`,
-    type: 'circle',
+    type: 'fill',
     source: sourceId,
     paint: {
-      'circle-radius': {
-        stops: [
-          [0, 0],
-          [10, radiusKm * 100], // Scale the radius based on zoom level
-          [15, radiusKm * 500]
-        ],
-        base: 2
-      },
-      'circle-color': '#ef4444',
-      'circle-opacity': 0.15,
-      'circle-stroke-width': 1,
-      'circle-stroke-color': '#ef4444',
-      'circle-stroke-opacity': 0.5
+      'fill-color': '#ef4444',
+      'fill-opacity': 0.15,
+    }
+  });
+
+  map.addLayer({
+    id: `circle-line-${location.id}`,
+    type: 'line',
+    source: sourceId,
+    paint: {
+      'line-color': '#ef4444',
+      'line-width': 1,
+      'line-opacity': 0.5
     }
   });
 }

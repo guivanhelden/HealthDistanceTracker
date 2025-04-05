@@ -31,20 +31,44 @@ export default function MapView({
   // Initialize map on component mount
   useEffect(() => {
     if (!mapContainer.current) return;
+    
+    // Ensure map is initialized only once
+    if (mapInstance.current) {
+      cleanupMap(mapInstance.current);
+    }
 
-    mapInstance.current = initializeMap('map', {
-      center: [CITY_COORDINATES['São Paulo'].lng, CITY_COORDINATES['São Paulo'].lat],
-      zoom: 10
-    });
+    try {
+      // Define center coordinates with the correct type
+      const defaultCenter: [number, number] = [
+        CITY_COORDINATES['São Paulo'].lng, 
+        CITY_COORDINATES['São Paulo'].lat
+      ];
+      
+      // Initialize map with correctly typed parameters
+      mapInstance.current = initializeMap('map', {
+        center: defaultCenter,
+        zoom: 10
+      });
 
-    mapInstance.current.on('load', () => {
-      setMapReady(true);
-    });
+      // Set up load event
+      mapInstance.current.on('load', () => {
+        console.log('Map loaded successfully');
+        setMapReady(true);
+      });
+      
+      // Handle error
+      mapInstance.current.on('error', (e) => {
+        console.error('Map error:', e.error);
+      });
+    } catch (error) {
+      console.error('Error initializing map:', error);
+    }
 
     // Cleanup on unmount
     return () => {
       if (mapInstance.current) {
         cleanupMap(mapInstance.current);
+        mapInstance.current = null;
       }
     };
   }, []);
