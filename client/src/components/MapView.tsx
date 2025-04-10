@@ -14,15 +14,25 @@ import {
 interface MapViewProps {
   clientLocations?: MapLocation[];
   providerLocations?: MapLocation[];
+  redeAtualLocations?: MapLocation[];
   focusCity?: keyof typeof CITY_COORDINATES;
   isLoading?: boolean;
+  showClients?: boolean;
+  showProviders?: boolean;
+  showRedeAtual?: boolean;
+  onToggleFilter?: (filterType: 'clients' | 'providers' | 'redeAtual') => void;
 }
 
 export default function MapView({ 
   clientLocations = [], 
   providerLocations = [], 
+  redeAtualLocations = [],
   focusCity,
-  isLoading = false
+  isLoading = false,
+  showClients = true,
+  showProviders = true,
+  showRedeAtual = true,
+  onToggleFilter
 }: MapViewProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<mapboxgl.Map | null>(null);
@@ -77,15 +87,22 @@ export default function MapView({
   useEffect(() => {
     if (!mapReady || !mapInstance.current) return;
     
-    const allLocations = [...clientLocations, ...providerLocations];
+    // Filtra localizações com base nas opções de exibição
+    const allLocations = [
+      ...(showClients ? clientLocations : []),
+      ...(showProviders ? providerLocations : []),
+      ...(showRedeAtual ? redeAtualLocations : [])
+    ];
     
     // Add markers for all locations
     const markers = addMarkersToMap(mapInstance.current, allLocations);
     
     // Add circle around each provider
-    providerLocations.forEach(provider => {
-      addProviderCircle(mapInstance.current!, provider, 7);
-    });
+    if (showProviders) {
+      providerLocations.forEach(provider => {
+        addProviderCircle(mapInstance.current!, provider, 7);
+      });
+    }
     
     // Fit map to show all locations
     if (allLocations.length > 0) {
@@ -96,7 +113,7 @@ export default function MapView({
     return () => {
       markers.forEach(marker => marker.remove());
     };
-  }, [clientLocations, providerLocations, mapReady]);
+  }, [clientLocations, providerLocations, redeAtualLocations, mapReady, showClients, showProviders, showRedeAtual]);
 
   // Focus on specific city when requested
   useEffect(() => {
@@ -106,26 +123,67 @@ export default function MapView({
 
   return (
     <div className="rounded-lg shadow overflow-hidden">
-      <div className="p-4 border-b border-slate-200 flex justify-between items-center">
-        <h3 className="font-semibold text-slate-700">Mapa de Distribuição</h3>
-        <div className="flex space-x-2">
-          <button 
-            onClick={() => mapInstance.current && focusMapOnCity(mapInstance.current, 'São Paulo')}
-            className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 py-1 px-2 rounded"
+      <div className="p-4 border-b border-slate-200">
+        <div className="flex justify-between items-center mb-3">
+          <h3 className="font-semibold text-slate-700">Mapa de Distribuição</h3>
+          <div className="flex space-x-2">
+            <button 
+              onClick={() => mapInstance.current && focusMapOnCity(mapInstance.current, 'São Paulo')}
+              className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 py-1 px-2 rounded"
+            >
+              São Paulo
+            </button>
+            <button 
+              onClick={() => mapInstance.current && focusMapOnCity(mapInstance.current, 'Rio de Janeiro')}
+              className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 py-1 px-2 rounded"
+            >
+              Rio de Janeiro
+            </button>
+            <button 
+              onClick={() => mapInstance.current && focusMapOnCity(mapInstance.current, 'Brasília')}
+              className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 py-1 px-2 rounded"
+            >
+              Brasília
+            </button>
+          </div>
+        </div>
+
+        {/* Filtros de visualização */}
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => onToggleFilter && onToggleFilter('clients')}
+            className={`text-xs py-1 px-2 rounded flex items-center gap-1 ${
+              showClients 
+                ? 'bg-blue-100 text-blue-700 border border-blue-200' 
+                : 'bg-slate-100 text-slate-500 border border-slate-200'
+            }`}
           >
-            São Paulo
+            <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+            Clientes
           </button>
-          <button 
-            onClick={() => mapInstance.current && focusMapOnCity(mapInstance.current, 'Rio de Janeiro')}
-            className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 py-1 px-2 rounded"
+          
+          <button
+            onClick={() => onToggleFilter && onToggleFilter('providers')}
+            className={`text-xs py-1 px-2 rounded flex items-center gap-1 ${
+              showProviders 
+                ? 'bg-red-100 text-red-700 border border-red-200' 
+                : 'bg-slate-100 text-slate-500 border border-slate-200'
+            }`}
           >
-            Rio de Janeiro
+            <div className="w-3 h-3 rounded-full bg-red-500"></div>
+            Prestadores
           </button>
-          <button 
-            onClick={() => mapInstance.current && focusMapOnCity(mapInstance.current, 'Brasília')}
-            className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 py-1 px-2 rounded"
+          
+          <button
+            onClick={() => onToggleFilter && onToggleFilter('redeAtual')}
+            className={`text-xs py-1 px-2 rounded flex items-center gap-1 ${
+              showRedeAtual 
+                ? 'bg-orange-100 text-orange-700 border border-orange-200' 
+                : 'bg-slate-100 text-slate-500 border border-slate-200'
+            }`}
           >
-            Brasília
+            <div className="w-3 h-3 rounded-full bg-orange-500"></div>
+            Prestadores Rede Atual
           </button>
         </div>
       </div>
@@ -153,6 +211,10 @@ export default function MapView({
             <div className="flex items-center">
               <div className="w-4 h-4 rounded-full bg-red-500 mr-2"></div>
               <span className="text-xs text-slate-700">Prestadores</span>
+            </div>
+            <div className="flex items-center">
+              <div className="w-4 h-4 rounded-full bg-orange-500 mr-2"></div>
+              <span className="text-xs text-slate-700">Prestadores Rede Atual</span>
             </div>
             <div className="flex items-center">
               <div className="w-4 h-4 rounded border-2 border-red-300 bg-red-100 bg-opacity-30 mr-2"></div>

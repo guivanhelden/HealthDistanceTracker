@@ -6,6 +6,7 @@ import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/Dashboard";
 import Report from "@/pages/Report";
 import Settings from "@/pages/Settings";
+import Compartilhado from "@/pages/Compartilhado";
 
 function Router() {
   return (
@@ -13,6 +14,7 @@ function Router() {
       <Route path="/" component={Dashboard} />
       <Route path="/relatorios" component={Report} />
       <Route path="/configuracoes" component={Settings} />
+      <Route path="/compartilhado" component={Compartilhado} />
       {/* Fallback to 404 */}
       <Route component={NotFound} />
     </Switch>

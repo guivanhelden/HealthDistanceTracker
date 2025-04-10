@@ -10,8 +10,15 @@ export default function Sidebar() {
   return (
     <div>
       <div className="p-4 border-b border-slate-700">
+        <div className="flex justify-center mb-4">
+          <img 
+            src="https://doc.vhseguros.com.br/files/public_html/LogoVH%2FVAN-HELDEN-cor.png" 
+            alt="Van Helden Seguros" 
+            className="h-10 w-auto" 
+          />
+        </div>
         <h1 className="text-xl font-semibold">Análise de Distância</h1>
-        <p className="text-sm text-slate-400">Cliente-Hospital</p>
+        <p className="text-sm text-slate-400">Cliente-Prestador</p>
       </div>
       
       <nav className="p-4">

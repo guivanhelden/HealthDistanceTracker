@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import Layout from '@/components/Layout';
 import ReportTable from '@/components/ReportTable';
 import DetailModal from '@/components/DetailModal';
+import ShareButton from '@/components/ShareButton';
 import { 
   Card, 
   CardContent, 
@@ -14,25 +15,29 @@ import {
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Cliente, Prestador, AnaliseDistancia } from '@/lib/supabase';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+type UF = 'TODOS' | 'SP' | 'RJ' | 'DF';
 
 export default function Report() {
   const { toast } = useToast();
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
   const [selectedPrestadorId, setSelectedPrestadorId] = useState<number | null>(null);
+  const [activeTab, setActiveTab] = useState<UF>('TODOS');
 
   // Fetch data
-  const { data: clientesData, isLoading: isLoadingClientes } = useQuery({
+  const { data: clientesData, isLoading: isLoadingClientes } = useQuery<Cliente[]>({
     queryKey: ['/api/clientes'],
     staleTime: 60000 // 1 minute
   });
 
-  const { data: prestadoresData, isLoading: isLoadingPrestadores } = useQuery({
+  const { data: prestadoresData, isLoading: isLoadingPrestadores } = useQuery<Prestador[]>({
     queryKey: ['/api/prestadores'],
     staleTime: 60000 // 1 minute
   });
 
-  const { data: analisesData, isLoading: isLoadingAnalises } = useQuery({
+  const { data: analisesData, isLoading: isLoadingAnalises } = useQuery<AnaliseDistancia[]>({
     queryKey: ['/api/analises'],
     staleTime: 60000 // 1 minute
   });
@@ -41,7 +46,7 @@ export default function Report() {
   const reportData = React.useMemo(() => {
     if (!clientesData || !prestadoresData || !analisesData) return [];
     
-    const clientMap = new Map();
+    const clientMap = new Map<number, any>();
     
     // Group analyses by client
     analisesData.forEach((analise: AnaliseDistancia) => {
@@ -57,7 +62,7 @@ export default function Report() {
             nome: cliente.nome || `Cliente ${cliente.id}`,
             uf: cliente.uf || '',
             iniciais: cliente.nome 
-              ? cliente.nome.split(' ').map(n => n.charAt(0)).join('').substring(0, 2).toUpperCase()
+              ? cliente.nome.split(' ').map((n: string) => n.charAt(0)).join('').substring(0, 2).toUpperCase()
               : ''
           },
           prestadores: []
@@ -89,6 +94,46 @@ export default function Report() {
     return Array.from(clientMap.values());
   }, [clientesData, prestadoresData, analisesData]);
 
+  // Filter data by UF
+  const filteredReportData = React.useMemo(() => {
+    if (activeTab === 'TODOS') return reportData;
+    return reportData.filter(item => item.cliente.uf === activeTab);
+  }, [reportData, activeTab]);
+
+  // Calcular estatísticas por UF
+  const estatisticasPorUF = React.useMemo(() => {
+    const stats: Record<string, { clientes: number, distanciaTotal: number, distanciaMedia: number }> = {
+      'SP': { clientes: 0, distanciaTotal: 0, distanciaMedia: 0 },
+      'RJ': { clientes: 0, distanciaTotal: 0, distanciaMedia: 0 },
+      'DF': { clientes: 0, distanciaTotal: 0, distanciaMedia: 0 },
+      'TODOS': { clientes: 0, distanciaTotal: 0, distanciaMedia: 0 }
+    };
+    
+    reportData.forEach(item => {
+      const uf = item.cliente.uf || 'Outros';
+      if (item.prestadores[0]) {
+        // Atualizar estatísticas do estado específico
+        if (stats[uf]) {
+          stats[uf].clientes++;
+          stats[uf].distanciaTotal += item.prestadores[0].distancia;
+        }
+        
+        // Atualizar estatísticas gerais
+        stats['TODOS'].clientes++;
+        stats['TODOS'].distanciaTotal += item.prestadores[0].distancia;
+      }
+    });
+    
+    // Calcular médias
+    Object.keys(stats).forEach(uf => {
+      if (stats[uf].clientes > 0) {
+        stats[uf].distanciaMedia = stats[uf].distanciaTotal / stats[uf].clientes;
+      }
+    });
+    
+    return stats;
+  }, [reportData]);
+
   // Handle showing detail modal
   const handleShowDetails = (clienteId: number, prestadorId: number) => {
     setSelectedClientId(clienteId);
@@ -105,9 +150,18 @@ export default function Report() {
 
   return (
     <Layout>
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-slate-800">Relatórios de Proximidade</h2>
-        <p className="text-slate-500">Relatórios detalhados das análises de distância entre clientes e prestadores</p>
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-800">Relatórios de Proximidade</h2>
+          <p className="text-slate-500">Relatórios detalhados das análises de distância entre clientes e prestadores</p>
+        </div>
+        <div>
+          <ShareButton 
+            uf={activeTab}
+            distanciaMaxima={15}
+            variant="outline"
+          />
+        </div>
       </div>
 
       {/* Report Sections */}
@@ -138,7 +192,13 @@ export default function Report() {
             </p>
           </CardContent>
           <CardFooter>
-            <Button className="w-full" variant="outline">Gerar Relatório por UF</Button>
+            <Button 
+              className="w-full" 
+              variant="outline"
+              onClick={() => setActiveTab(activeTab === 'TODOS' ? 'SP' : 'TODOS')}
+            >
+              {activeTab === 'TODOS' ? 'Filtrar por UF' : 'Mostrar Todos'}
+            </Button>
           </CardFooter>
         </Card>
         
@@ -158,14 +218,98 @@ export default function Report() {
         </Card>
       </div>
 
-      {/* Report Table */}
-      <div className="mt-6">
-        <ReportTable 
-          data={reportData}
-          isLoading={isLoadingAnalises || isLoadingClientes || isLoadingPrestadores}
-          onShowDetails={handleShowDetails}
-        />
-      </div>
+      {/* Tabs for UF filtering */}
+      <Tabs 
+        value={activeTab} 
+        onValueChange={(value) => setActiveTab(value as UF)}
+        className="mb-6"
+      >
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-xl font-semibold text-slate-700">Proximidade Cliente-Prestador</h3>
+          <TabsList className="bg-slate-100">
+            <TabsTrigger value="TODOS" className="data-[state=active]:bg-white">Todos</TabsTrigger>
+            <TabsTrigger value="SP" className="data-[state=active]:bg-white">São Paulo</TabsTrigger>
+            <TabsTrigger value="RJ" className="data-[state=active]:bg-white">Rio de Janeiro</TabsTrigger>
+            <TabsTrigger value="DF" className="data-[state=active]:bg-white">Distrito Federal</TabsTrigger>
+          </TabsList>
+        </div>
+
+        {/* Estatísticas resumidas para a UF selecionada */}
+        {estatisticasPorUF[activeTab] && (
+          <div className="bg-white p-4 rounded-lg shadow-sm mb-4">
+            <div className="grid grid-cols-3 gap-4 text-center">
+              <div>
+                <p className="text-sm text-slate-500">Total de Clientes</p>
+                <p className="text-2xl font-semibold text-slate-800">{estatisticasPorUF[activeTab].clientes}</p>
+              </div>
+              <div>
+                <p className="text-sm text-slate-500">Distância Média</p>
+                <p className="text-2xl font-semibold text-slate-800">
+                  {estatisticasPorUF[activeTab].distanciaMedia.toFixed(1)} km
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-slate-500">UF</p>
+                <p className="text-2xl font-semibold text-slate-800">
+                  {activeTab === 'TODOS' ? 'Todos' : activeTab}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <TabsContent value="TODOS" className="mt-0">
+          <p className="text-sm text-slate-500 mb-4">
+            Visualizando dados de todos os estados. Utilize as abas acima para filtrar por UF específica.
+          </p>
+          
+          <ReportTable 
+            data={reportData}
+            isLoading={isLoadingAnalises || isLoadingClientes || isLoadingPrestadores}
+            onShowDetails={handleShowDetails}
+            uf="TODOS"
+          />
+        </TabsContent>
+        
+        <TabsContent value="SP" className="mt-0">
+          <p className="text-sm text-slate-500 mb-4">
+            Clientes localizados em São Paulo e seus prestadores mais próximos.
+          </p>
+          
+          <ReportTable 
+            data={filteredReportData}
+            isLoading={isLoadingAnalises || isLoadingClientes || isLoadingPrestadores}
+            onShowDetails={handleShowDetails}
+            uf="SP"
+          />
+        </TabsContent>
+        
+        <TabsContent value="RJ" className="mt-0">
+          <p className="text-sm text-slate-500 mb-4">
+            Clientes localizados no Rio de Janeiro e seus prestadores mais próximos.
+          </p>
+          
+          <ReportTable 
+            data={filteredReportData}
+            isLoading={isLoadingAnalises || isLoadingClientes || isLoadingPrestadores}
+            onShowDetails={handleShowDetails}
+            uf="RJ"
+          />
+        </TabsContent>
+        
+        <TabsContent value="DF" className="mt-0">
+          <p className="text-sm text-slate-500 mb-4">
+            Clientes localizados no Distrito Federal e seus prestadores mais próximos.
+          </p>
+          
+          <ReportTable 
+            data={filteredReportData}
+            isLoading={isLoadingAnalises || isLoadingClientes || isLoadingPrestadores}
+            onShowDetails={handleShowDetails}
+            uf="DF"
+          />
+        </TabsContent>
+      </Tabs>
       
       {/* Detail Modal */}
       <DetailModal 

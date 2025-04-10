@@ -8,9 +8,10 @@ import MapView from '@/components/MapView';
 import AnalysisPanel from '@/components/AnalysisPanel';
 import ReportTable from '@/components/ReportTable';
 import DetailModal from '@/components/DetailModal';
+import ShareButton from '@/components/ShareButton';
 import { apiRequest } from '@/lib/queryClient';
 import { MapLocation, CITY_COORDINATES } from '@/lib/mapbox';
-import { Cliente, Prestador, AnaliseDistancia, Estatisticas } from '@/lib/supabase';
+import { Cliente, Prestador, AnaliseDistancia, Estatisticas, RedeAtual, fetchRedeAtual } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 
 export default function Dashboard() {
@@ -24,6 +25,13 @@ export default function Dashboard() {
     uf: 'Todos',
     tipoServico: 'Todos',
     distanciaMaxima: 15
+  });
+  
+  // Filtros para controlar a visibilidade no mapa
+  const [mapFilters, setMapFilters] = useState({
+    showClients: true,
+    showProviders: true,
+    showRedeAtual: true
   });
 
   // Parse city from URL if present
@@ -56,6 +64,13 @@ export default function Dashboard() {
     staleTime: 60000 // 1 minute
   });
 
+  // Buscar os prestadores da rede atual
+  const { data: redeAtualData, isLoading: isLoadingRedeAtual } = useQuery({
+    queryKey: ['redeAtual'],
+    queryFn: fetchRedeAtual,
+    staleTime: 60000 // 1 minute
+  });
+
   // Convert to map locations
   const clientLocations: MapLocation[] = (clientesData || [])
     .filter((cliente: Cliente) => cliente.cliente_latitude && cliente.cliente_longitude)
@@ -83,6 +98,25 @@ export default function Dashboard() {
         uf: prestador.uf,
         cep: prestador.cep,
         tipo: prestador.tipo_servico
+      }
+    }));
+
+  // Converter prestadores da rede atual para localizações no mapa
+  const redeAtualLocations: MapLocation[] = (redeAtualData || [])
+    .filter((prestador: RedeAtual) => prestador.latitude && prestador.longitude)
+    .map((prestador: RedeAtual) => ({
+      id: prestador.id,
+      latitude: Number(prestador.latitude),
+      longitude: Number(prestador.longitude),
+      name: prestador.nome_prestador || `Prestador Rede Atual ${prestador.id}`,
+      type: 'rede_atual',
+      details: {
+        uf: prestador.uf,
+        cep: prestador.cep,
+        plano: prestador.plano,
+        tipo: prestador.tipo_servico,
+        especialidade: prestador.especialidade,
+        operadora: prestador.operadora
       }
     }));
 
@@ -209,11 +243,37 @@ export default function Dashboard() {
     (a: AnaliseDistancia) => a.cliente_id === selectedClientId && a.prestador_id === selectedPrestadorId
   );
 
+  // Manipular o toggle dos filtros do mapa
+  const handleToggleMapFilter = (filterType: 'clients' | 'providers' | 'redeAtual') => {
+    setMapFilters(prev => {
+      if (filterType === 'clients') {
+        return { ...prev, showClients: !prev.showClients };
+      } else if (filterType === 'providers') {
+        return { ...prev, showProviders: !prev.showProviders };
+      } else if (filterType === 'redeAtual') {
+        return { ...prev, showRedeAtual: !prev.showRedeAtual };
+      }
+      return prev;
+    });
+  };
+
   return (
     <Layout>
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-slate-800">Análise de Distância Cliente-Hospital</h2>
-        <p className="text-slate-500">Visualize e analise as distâncias entre clientes e prestadores de saúde</p>
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-800">Dashboard</h2>
+          <p className="text-slate-500">Análise de proximidade entre clientes e prestadores</p>
+        </div>
+        <div>
+          <ShareButton 
+            uf={filters.uf}
+            cidade={selectedCity}
+            mostrarClientes={mapFilters.showClients}
+            mostrarPrestadores={mapFilters.showProviders}
+            mostrarRedeAtual={mapFilters.showRedeAtual}
+            distanciaMaxima={filters.distanciaMaxima}
+          />
+        </div>
       </div>
 
       {/* Stats Overview */}
@@ -258,8 +318,13 @@ export default function Dashboard() {
           <MapView 
             clientLocations={clientLocations}
             providerLocations={providerLocations}
+            redeAtualLocations={redeAtualLocations}
             focusCity={selectedCity}
-            isLoading={isLoadingClientes || isLoadingPrestadores}
+            isLoading={isLoadingClientes || isLoadingPrestadores || isLoadingRedeAtual}
+            showClients={mapFilters.showClients}
+            showProviders={mapFilters.showProviders}
+            showRedeAtual={mapFilters.showRedeAtual}
+            onToggleFilter={handleToggleMapFilter}
           />
         </div>
 

@@ -58,6 +58,22 @@ export interface Estatisticas {
   totalAnalyses: number;
 }
 
+export interface RedeAtual {
+  id: number;
+  nome_prestador: string;
+  uf: string;
+  municipio: string;
+  cep?: string;
+  latitude: number;
+  longitude: number;
+  tipo_servico?: string;
+  especialidade?: string;
+  plano?: string;
+  operadora?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
 /**
  * Fetches data directly from Supabase (alternative to API routes)
  */
@@ -115,6 +131,25 @@ export async function fetchAnalises(): Promise<AnaliseDistancia[]> {
   const { data, error } = await supabase
     .from('analise_distancia_ps')
     .select('*');
+  
+  if (error) throw new Error(error.message);
+  return data || [];
+}
+
+export async function fetchRedeAtual(): Promise<RedeAtual[]> {
+  const { data, error } = await supabase
+    .from('rede_atual')
+    .select('*');
+  
+  if (error) throw new Error(error.message);
+  return data || [];
+}
+
+export async function fetchRedeAtualByPlano(plano: string): Promise<RedeAtual[]> {
+  const { data, error } = await supabase
+    .from('rede_atual')
+    .select('*')
+    .eq('plano', plano);
   
   if (error) throw new Error(error.message);
   return data || [];

@@ -18,7 +18,7 @@ export interface MapLocation {
   latitude: number;
   longitude: number;
   name: string;
-  type: 'cliente' | 'prestador';
+  type: 'cliente' | 'prestador' | 'rede_atual';
   details?: Record<string, any>;
 }
 
@@ -61,13 +61,28 @@ export function addMarkersToMap(map: mapboxgl.Map, locations: MapLocation[]): ma
 
     // Create element for marker
     const el = document.createElement('div');
-    el.className = `marker ${location.type === 'cliente' ? 'marker-client' : 'marker-provider'}`;
+    el.className = `marker ${
+      location.type === 'cliente' 
+        ? 'marker-client' 
+        : location.type === 'prestador' 
+          ? 'marker-provider' 
+          : 'marker-rede-atual'
+    }`;
     
     // Style the marker
     el.style.width = '20px';
     el.style.height = '20px';
     el.style.borderRadius = '50%';
-    el.style.backgroundColor = location.type === 'cliente' ? '#3b82f6' : '#ef4444';
+    
+    // Cor para cada tipo de localização
+    if (location.type === 'cliente') {
+      el.style.backgroundColor = '#3b82f6'; // Azul
+    } else if (location.type === 'prestador') {
+      el.style.backgroundColor = '#ef4444'; // Vermelho
+    } else if (location.type === 'rede_atual') {
+      el.style.backgroundColor = '#f97316'; // Laranja
+    }
+    
     el.style.border = '2px solid white';
     el.style.boxShadow = '0 0 0 1px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.2)';
     
@@ -76,9 +91,17 @@ export function addMarkersToMap(map: mapboxgl.Map, locations: MapLocation[]): ma
       .setHTML(`
         <div>
           <h3 class="font-bold text-sm mb-1">${location.name}</h3>
-          <p class="text-xs text-gray-600">${location.type === 'cliente' ? 'Cliente' : 'Prestador'}</p>
+          <p class="text-xs text-gray-600">${
+            location.type === 'cliente' 
+              ? 'Cliente' 
+              : location.type === 'prestador' 
+                ? 'Prestador' 
+                : 'Prestador Rede Atual'
+          }</p>
           ${location.details?.uf ? `<p class="text-xs mt-1">UF: ${location.details.uf}</p>` : ''}
           ${location.details?.cep ? `<p class="text-xs">CEP: ${location.details.cep}</p>` : ''}
+          ${location.details?.plano ? `<p class="text-xs">Plano: ${location.details.plano}</p>` : ''}
+          ${location.details?.especialidade ? `<p class="text-xs">Especialidade: ${location.details.especialidade}</p>` : ''}
         </div>
       `);
 
