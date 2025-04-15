@@ -21,6 +21,12 @@
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
+.marker-bronze-mais {
+  background-color: #800020; /* Bordô */
+  border: 2px solid white;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
 /* Make mapbox controls better match shadcn design */
 .mapboxgl-ctrl-group {
   border-radius: 0.375rem !important;

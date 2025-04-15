@@ -31,7 +31,8 @@ export default function Dashboard() {
   const [mapFilters, setMapFilters] = useState({
     showClients: true,
     showProviders: true,
-    showRedeAtual: true
+    showRedeAtual: true,
+    showBronzeMais: true
   });
 
   // Parse city from URL if present
@@ -52,6 +53,16 @@ export default function Dashboard() {
   const { data: prestadoresData, isLoading: isLoadingPrestadores } = useQuery({
     queryKey: ['/api/prestadores'],
     staleTime: 60000 // 1 minute
+  });
+
+  const { data: bronzeMaisData, isLoading: isLoadingBronzeMais } = useQuery({
+    queryKey: ['/api/bronzeMais'],
+    queryFn: async () => {
+      const { data, error } = await import('@/lib/supabase').then(m => m.supabase.from('rede_bronze_mais_amil_resumida').select('*'));
+      if (error) throw new Error(error.message);
+      return data || [];
+    },
+    staleTime: 60000
   });
 
   const { data: analisesData, isLoading: isLoadingAnalises } = useQuery({
@@ -97,7 +108,8 @@ export default function Dashboard() {
       details: {
         uf: prestador.uf,
         cep: prestador.cep,
-        tipo: prestador.tipo_servico
+        tipo: prestador.tipo_servico,
+        especialidade: prestador.especialidades && prestador.especialidades.length ? prestador.especialidades[0] : undefined
       }
     }));
 
@@ -117,6 +129,23 @@ export default function Dashboard() {
         tipo: prestador.tipo_servico,
         especialidade: prestador.especialidade,
         operadora: prestador.operadora
+      }
+    }));
+
+  // Converter prestadores bronze mais para localizações no mapa
+  const bronzeMaisLocations: MapLocation[] = (bronzeMaisData || [])
+    .filter((prestador: any) => prestador.prestador_latitude && prestador.prestador_longitude)
+    .map((prestador: any) => ({
+      id: prestador.id,
+      latitude: Number(prestador.prestador_latitude),
+      longitude: Number(prestador.prestador_longitude),
+      name: prestador.nome_prestador || `Bronze Mais ${prestador.id}`,
+      type: 'bronzeMais',
+      details: {
+        uf: prestador.uf,
+        cep: prestador.cep,
+        tipo: prestador.tipo_servico,
+        especialidade: prestador.especialidades && prestador.especialidades.length ? prestador.especialidades[0] : undefined
       }
     }));
 
@@ -244,7 +273,7 @@ export default function Dashboard() {
   );
 
   // Manipular o toggle dos filtros do mapa
-  const handleToggleMapFilter = (filterType: 'clients' | 'providers' | 'redeAtual') => {
+  const handleToggleMapFilter = (filterType: 'clients' | 'providers' | 'redeAtual' | 'bronzeMais') => {
     setMapFilters(prev => {
       if (filterType === 'clients') {
         return { ...prev, showClients: !prev.showClients };
@@ -252,6 +281,8 @@ export default function Dashboard() {
         return { ...prev, showProviders: !prev.showProviders };
       } else if (filterType === 'redeAtual') {
         return { ...prev, showRedeAtual: !prev.showRedeAtual };
+      } else if (filterType === 'bronzeMais') {
+        return { ...prev, showBronzeMais: !prev.showBronzeMais };
       }
       return prev;
     });
@@ -319,11 +350,13 @@ export default function Dashboard() {
             clientLocations={clientLocations}
             providerLocations={providerLocations}
             redeAtualLocations={redeAtualLocations}
+            bronzeMaisLocations={bronzeMaisLocations}
             focusCity={selectedCity}
-            isLoading={isLoadingClientes || isLoadingPrestadores || isLoadingRedeAtual}
+            isLoading={isLoadingClientes || isLoadingPrestadores || isLoadingRedeAtual || isLoadingBronzeMais}
             showClients={mapFilters.showClients}
             showProviders={mapFilters.showProviders}
             showRedeAtual={mapFilters.showRedeAtual}
+            showBronzeMais={mapFilters.showBronzeMais}
             onToggleFilter={handleToggleMapFilter}
           />
         </div>

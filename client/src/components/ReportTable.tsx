@@ -39,6 +39,7 @@ interface ReportTableProps {
 export default function ReportTable({ data, isLoading, onShowDetails, uf = 'TODOS' }: ReportTableProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const [sortByDistance, setSortByDistance] = useState(false);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const rowsPerPage = 10;
   
   const totalPages = Math.ceil(data.length / rowsPerPage);
@@ -47,9 +48,9 @@ export default function ReportTable({ data, isLoading, onShowDetails, uf = 'TODO
   // Ordenar localmente se necessário
   const sortedData = sortByDistance 
     ? [...data].sort((a, b) => {
-        const aDistance = a.prestadores[0]?.distancia || Number.MAX_VALUE;
-        const bDistance = b.prestadores[0]?.distancia || Number.MAX_VALUE;
-        return aDistance - bDistance;
+        const aDistance = a.prestadores[0]?.distancia ?? Number.MAX_VALUE;
+        const bDistance = b.prestadores[0]?.distancia ?? Number.MAX_VALUE;
+        return sortDirection === 'asc' ? aDistance - bDistance : bDistance - aDistance;
       })
     : data;
     
@@ -186,17 +187,32 @@ export default function ReportTable({ data, isLoading, onShowDetails, uf = 'TODO
               <TableHead>Cliente</TableHead>
               <TableHead>UF</TableHead>
               <TableHead>Prestador #1</TableHead>
-              <TableHead 
-                className="cursor-pointer hover:bg-slate-50" 
-                onClick={() => setSortByDistance(!sortByDistance)}
-              >
-                <div className="flex items-center">
-                  <span>Distância</span>
-                  {sortByDistance ? (
-                    <ArrowDownIcon className="ml-1 h-4 w-4 text-blue-600" />
-                  ) : (
-                    <ArrowUpDown className="ml-1 h-4 w-4 text-slate-400" />
-                  )}
+              <TableHead>
+                <div className="flex items-center gap-1">
+                  Distância
+                  <button
+                    aria-label={`Ordenar por distância (${sortDirection === 'asc' ? 'crescente' : 'decrescente'})`}
+                    className="ml-1 text-blue-500 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300 rounded"
+                    onClick={() => {
+                      if (!sortByDistance) {
+                        setSortByDistance(true);
+                        setSortDirection('asc');
+                      } else {
+                        setSortDirection((prev) => prev === 'asc' ? 'desc' : 'asc');
+                      }
+                    }}
+                    aria-pressed={sortByDistance}
+                  >
+                    {sortByDistance ? (
+                      sortDirection === 'asc' ? (
+                        <ArrowDownIcon className="w-4 h-4 inline" aria-label="Ordem crescente" />
+                      ) : (
+                        <ArrowDownIcon className="w-4 h-4 inline rotate-180" aria-label="Ordem decrescente" />
+                      )
+                    ) : (
+                      <ArrowUpDown className="w-4 h-4 inline" aria-label="Sem ordenação" />
+                    )}
+                  </button>
                 </div>
               </TableHead>
               <TableHead>Prestador #2</TableHead>

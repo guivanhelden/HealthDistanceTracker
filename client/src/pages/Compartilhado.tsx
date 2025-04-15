@@ -5,7 +5,18 @@ import LayoutCompartilhado from '@/components/LayoutCompartilhado';
 import MapView from '@/components/MapView';
 import ReportTable from '@/components/ReportTable';
 import DetailModal from '@/components/DetailModal';
-import { Cliente, Prestador, AnaliseDistancia, RedeAtual, fetchRedeAtual } from '@/lib/supabase';
+import { 
+  Cliente, 
+  Prestador, 
+  AnaliseDistancia, 
+  RedeAtual, 
+  fetchRedeAtual, 
+  fetchAnalises,
+  fetchClientes,
+  fetchPrestadores,
+  listAvailableTables,
+  supabase
+} from '@/lib/supabase';
 import { MapLocation, CITY_COORDINATES } from '@/lib/mapbox';
 import { CardTitle, CardDescription, CardHeader, Card } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
@@ -22,9 +33,46 @@ export default function Compartilhado() {
     distanciaMaxima: 15,
     mostrarClientes: true,
     mostrarPrestadores: true,
-    mostrarRedeAtual: true
+    mostrarRedeAtual: true,
+    mostrarBronzeMais: true,
+    mostrarProntoSocorro: true
   });
   
+  // Verificar conexão com Supabase e tabelas disponíveis
+  useEffect(() => {
+    const checkSupabaseConnection = async () => {
+      try {
+        // Verificar conexão
+        const { data, error } = await supabase.from('analise_distancia_ps').select('count()', { count: 'exact' });
+        
+        if (error) {
+          console.error('Erro ao conectar com a tabela analise_distancia_ps:', error);
+          toast({
+            title: "Erro de conexão",
+            description: `Erro ao acessar a tabela analise_distancia_ps: ${error.message}`,
+          });
+          
+          // Listar tabelas disponíveis
+          const tables = await listAvailableTables();
+          console.log('Tabelas disponíveis:', tables);
+          
+          if (tables.length > 0) {
+            toast({
+              title: "Tabelas disponíveis",
+              description: `Tabelas encontradas: ${tables.join(', ')}`,
+            });
+          }
+        } else {
+          console.log('Conexão com analise_distancia_ps bem-sucedida. Contagem:', data[0].count);
+        }
+      } catch (e) {
+        console.error('Exceção ao verificar conexão:', e);
+      }
+    };
+    
+    checkSupabaseConnection();
+  }, [toast]);
+
   // Extrair parâmetros da URL
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -45,6 +93,8 @@ export default function Compartilhado() {
     const mostrarClientes = urlParams.get('clientes');
     const mostrarPrestadores = urlParams.get('prestadores');
     const mostrarRedeAtual = urlParams.get('redeAtual');
+    const mostrarBronzeMais = urlParams.get('bronzeMais');
+    const mostrarProntoSocorro = urlParams.get('prontoSocorro');
     const distancia = urlParams.get('distancia');
     
     // Atualizar filtros com base nos parâmetros da URL
@@ -53,25 +103,52 @@ export default function Compartilhado() {
       mostrarClientes: mostrarClientes ? mostrarClientes === '1' : prev.mostrarClientes,
       mostrarPrestadores: mostrarPrestadores ? mostrarPrestadores === '1' : prev.mostrarPrestadores,
       mostrarRedeAtual: mostrarRedeAtual ? mostrarRedeAtual === '1' : prev.mostrarRedeAtual,
+      mostrarBronzeMais: mostrarBronzeMais ? mostrarBronzeMais === '1' : prev.mostrarBronzeMais,
+      mostrarProntoSocorro: mostrarProntoSocorro ? mostrarProntoSocorro === '1' : prev.mostrarProntoSocorro,
       distanciaMaxima: distancia ? parseInt(distancia, 10) : prev.distanciaMaxima
     }));
   }, [location]);
 
   // Buscar dados
   const { data: clientesData = [], isLoading: isLoadingClientes } = useQuery<Cliente[]>({
-    queryKey: ['/api/clientes'],
+    queryKey: ['clientes'],
+    queryFn: fetchClientes,
     staleTime: 60000 // 1 minuto
   });
+  
+  // Buscar dados de Bronze Mais (simulado por enquanto)
+  const { data: bronzeMaisData = [], isLoading: isLoadingBronzeMais } = useQuery<Prestador[]>({
+    queryKey: ['bronzeMais'],
+    queryFn: () => Promise.resolve([]), // Dados simulados por enquanto
+    staleTime: 60000 // 1 minuto
+  });
+  
+  // Log para depuração
+  React.useEffect(() => {
+    console.log('Clientes carregados:', clientesData.length);
+  }, [clientesData]);
 
   const { data: prestadoresData = [], isLoading: isLoadingPrestadores } = useQuery<Prestador[]>({
-    queryKey: ['/api/prestadores'],
+    queryKey: ['prestadores'],
+    queryFn: fetchPrestadores,
     staleTime: 60000 // 1 minuto
   });
+  
+  // Log para depuração
+  React.useEffect(() => {
+    console.log('Prestadores carregados:', prestadoresData.length);
+  }, [prestadoresData]);
 
   const { data: analisesData = [], isLoading: isLoadingAnalises } = useQuery<AnaliseDistancia[]>({
-    queryKey: ['/api/analises'],
+    queryKey: ['analises'],
+    queryFn: fetchAnalises,
     staleTime: 60000 // 1 minuto
   });
+  
+  // Log para depuração
+  React.useEffect(() => {
+    console.log('Análises carregadas:', analisesData.length);
+  }, [analisesData]);
 
   // Buscar os prestadores da rede atual
   const { data: redeAtualData = [], isLoading: isLoadingRedeAtual } = useQuery<RedeAtual[]>({
@@ -79,60 +156,133 @@ export default function Compartilhado() {
     queryFn: fetchRedeAtual,
     staleTime: 60000 // 1 minuto
   });
+  
+  // Log para depuração
+  React.useEffect(() => {
+    console.log('Rede atual carregada:', redeAtualData.length);
+  }, [redeAtualData]);
 
-  // Converter para localizações no mapa
-  const clientLocations: MapLocation[] = clientesData
-    .filter((cliente: Cliente) => cliente.cliente_latitude && cliente.cliente_longitude)
-    .map((cliente: Cliente) => ({
+  // Converter dados para formato do mapa
+  const clientLocations: MapLocation[] = React.useMemo(() => 
+    clientesData.map(cliente => ({
       id: cliente.id,
-      latitude: Number(cliente.cliente_latitude),
-      longitude: Number(cliente.cliente_longitude),
+      latitude: cliente.cliente_latitude ? Number(cliente.cliente_latitude) : 0,
+      longitude: cliente.cliente_longitude ? Number(cliente.cliente_longitude) : 0,
       name: cliente.nome || `Cliente ${cliente.id}`,
-      type: 'cliente',
+      type: 'cliente' as const,
       details: {
         uf: cliente.uf,
-        cep: cliente.cep
+        cep: cliente.cep,
+        plano: cliente.plano
       }
-    }));
+    })).filter(loc => loc.latitude && loc.longitude)
+  , [clientesData]);
 
-  const providerLocations: MapLocation[] = prestadoresData
-    .filter((prestador: Prestador) => prestador.prestador_latitude && prestador.prestador_longitude)
-    .map((prestador: Prestador) => ({
+  const providerLocations: MapLocation[] = React.useMemo(() => 
+    prestadoresData.map(prestador => ({
       id: prestador.id,
-      latitude: Number(prestador.prestador_latitude),
-      longitude: Number(prestador.prestador_longitude),
+      latitude: prestador.prestador_latitude ? Number(prestador.prestador_latitude) : 0,
+      longitude: prestador.prestador_longitude ? Number(prestador.prestador_longitude) : 0,
       name: prestador.nome_prestador || `Prestador ${prestador.id}`,
-      type: 'prestador',
+      type: 'prestador' as const,
       details: {
         uf: prestador.uf,
         cep: prestador.cep,
-        tipo: prestador.tipo_servico
-      }
-    }));
-
-  // Converter prestadores da rede atual para localizações no mapa
-  const redeAtualLocations: MapLocation[] = redeAtualData
-    .filter((prestador: RedeAtual) => prestador.latitude && prestador.longitude)
-    .map((prestador: RedeAtual) => ({
-      id: prestador.id,
-      latitude: Number(prestador.latitude),
-      longitude: Number(prestador.longitude),
-      name: prestador.nome_prestador || `Prestador Rede Atual ${prestador.id}`,
-      type: 'rede_atual',
-      details: {
-        uf: prestador.uf,
-        cep: prestador.cep,
-        plano: prestador.plano,
         tipo: prestador.tipo_servico,
-        especialidade: prestador.especialidade,
-        operadora: prestador.operadora
+        especialidade: prestador.especialidades?.[0], // Corrigido para acessar o array de especialidades
+        operadora: 'Amil' // Nome da operadora fixo para prestadores
       }
-    }));
+    })).filter(loc => loc.latitude && loc.longitude)
+  , [prestadoresData]);
+
+  const redeAtualLocations: MapLocation[] = React.useMemo(() => 
+    redeAtualData.map(prestador => ({
+      id: prestador.id,
+      latitude: prestador.latitude ? Number(prestador.latitude) : 0, // Corrigido para usar a propriedade correta
+      longitude: prestador.longitude ? Number(prestador.longitude) : 0, // Corrigido para usar a propriedade correta
+      name: prestador.nome_prestador || `Prestador Rede Atual ${prestador.id}`,
+      type: 'rede_atual' as const,
+      details: {
+        uf: prestador.uf,
+        cep: prestador.cep,
+        tipo: prestador.tipo_servico,
+        especialidade: prestador.especialidade, // Usando o campo correto da interface RedeAtual
+        operadora: prestador.operadora // Usando o campo correto da interface RedeAtual
+      }
+    })).filter(loc => loc.latitude && loc.longitude)
+  , [redeAtualData]);
+
+  const bronzeMaisLocations: MapLocation[] = React.useMemo(() => 
+    bronzeMaisData.map(prestador => ({
+      id: prestador.id,
+      latitude: prestador.prestador_latitude ? Number(prestador.prestador_latitude) : 0,
+      longitude: prestador.prestador_longitude ? Number(prestador.prestador_longitude) : 0,
+      name: prestador.nome_prestador || `Prestador Bronze Mais ${prestador.id}`,
+      type: 'bronzeMais' as const,
+      details: {
+        uf: prestador.uf,
+        cep: prestador.cep,
+        tipo: prestador.tipo_servico,
+        especialidade: prestador.especialidades?.[0], // Corrigido para acessar o array de especialidades
+        operadora: 'Amil Bronze Mais' // Nome da operadora fixo para prestadores Bronze Mais
+      }
+    })).filter(loc => loc.latitude && loc.longitude)
+  , [bronzeMaisData]);
 
   // Processar dados de análise para o relatório
   const reportData = React.useMemo(() => {
-    if (!clientesData.length || !prestadoresData.length || !analisesData.length) return [];
+    if (!clientesData.length || !prestadoresData.length) return [];
     
+    // Se não temos dados de análise, gerar alguns dados simulados para visualização
+    if (!analisesData.length) {
+      console.log('Sem dados de análise disponíveis, gerando visualização de demonstração');
+      const mockReportData = [];
+      
+      // Usar alguns clientes reais
+      for (let i = 0; i < Math.min(clientesData.length, 20); i++) {
+        const cliente = clientesData[i];
+        
+        // Encontrar prestadores próximos baseados nas coordenadas (se disponíveis)
+        let nearbyPrestadores = [];
+        
+        if (cliente.cliente_latitude && cliente.cliente_longitude) {
+          // Encontrar prestadores na mesma UF ou próximos
+          nearbyPrestadores = prestadoresData
+            .filter(p => p.uf === cliente.uf)
+            .slice(0, 5);
+        } else {
+          // Se não temos coordenadas, pegar alguns prestadores aleatórios
+          nearbyPrestadores = prestadoresData
+            .filter(p => p.uf === cliente.uf)
+            .slice(0, 2);
+        }
+        
+        if (nearbyPrestadores.length === 0) continue;
+        
+        // Criar entrada para a visualização
+        mockReportData.push({
+          cliente: {
+            id: cliente.id,
+            nome: cliente.nome || `Cliente ${cliente.id}`,
+            uf: cliente.uf || '',
+            iniciais: cliente.nome 
+              ? cliente.nome.split(' ').map((n: string) => n.charAt(0)).join('').substring(0, 2).toUpperCase()
+              : ''
+          },
+          prestadores: nearbyPrestadores.map((prestador, idx) => ({
+            id: prestador.id,
+            nome: prestador.nome_prestador || `Prestador ${prestador.id}`,
+            local: prestador.municipio || prestador.uf || '',
+            distancia: Math.random() * 15, // Distância simulada
+            ranking: idx + 1
+          }))
+        });
+      }
+      
+      return mockReportData;
+    }
+    
+    // Processamento normal quando temos dados de análise
     const clientMap = new Map<number, any>();
     
     // Agrupar análises por cliente
@@ -227,7 +377,7 @@ export default function Compartilhado() {
     (a: AnaliseDistancia) => a.cliente_id === selectedClientId && a.prestador_id === selectedPrestadorId
   );
 
-  const isLoading = isLoadingClientes || isLoadingPrestadores || isLoadingAnalises || isLoadingRedeAtual;
+  const isLoading = isLoadingClientes || isLoadingPrestadores || isLoadingAnalises || isLoadingRedeAtual || isLoadingBronzeMais;
 
   // Determinar título baseado nos filtros
   const getPageTitle = () => {
@@ -274,11 +424,27 @@ export default function Compartilhado() {
           clientLocations={clientLocations} 
           providerLocations={providerLocations}
           redeAtualLocations={redeAtualLocations}
+          bronzeMaisLocations={bronzeMaisLocations}
           focusCity={cidadeFoco}
           isLoading={isLoading}
           showClients={filtros.mostrarClientes}
           showProviders={filtros.mostrarPrestadores}
           showRedeAtual={filtros.mostrarRedeAtual}
+          showBronzeMais={filtros.mostrarBronzeMais}
+          showProntoSocorro={filtros.mostrarProntoSocorro}
+          onToggleFilter={(filterType) => {
+            if (filterType === 'clients') {
+              setFiltros(prev => ({ ...prev, mostrarClientes: !prev.mostrarClientes }));
+            } else if (filterType === 'providers') {
+              setFiltros(prev => ({ ...prev, mostrarPrestadores: !prev.mostrarPrestadores }));
+            } else if (filterType === 'redeAtual') {
+              setFiltros(prev => ({ ...prev, mostrarRedeAtual: !prev.mostrarRedeAtual }));
+            } else if (filterType === 'bronzeMais') {
+              setFiltros(prev => ({ ...prev, mostrarBronzeMais: !prev.mostrarBronzeMais }));
+            } else if (filterType === 'prontoSocorro') {
+              setFiltros(prev => ({ ...prev, mostrarProntoSocorro: !prev.mostrarProntoSocorro }));
+            }
+          }}
         />
       </div>
 

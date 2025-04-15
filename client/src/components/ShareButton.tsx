@@ -38,6 +38,8 @@ interface ShareButtonProps {
   mostrarClientes?: boolean;
   mostrarPrestadores?: boolean;
   mostrarRedeAtual?: boolean;
+  mostrarBronzeMais?: boolean;
+  mostrarProntoSocorro?: boolean;
   distanciaMaxima?: number;
   variant?: 'default' | 'outline' | 'ghost';
   size?: 'default' | 'sm' | 'lg';
@@ -49,6 +51,8 @@ export default function ShareButton({
   mostrarClientes = true,
   mostrarPrestadores = true,
   mostrarRedeAtual = true,
+  mostrarBronzeMais = true,
+  mostrarProntoSocorro = true,
   distanciaMaxima = 15,
   variant = 'default',
   size = 'default'
@@ -61,6 +65,8 @@ export default function ShareButton({
     mostrarClientes,
     mostrarPrestadores,
     mostrarRedeAtual,
+    mostrarBronzeMais,
+    mostrarProntoSocorro,
     distanciaMaxima
   });
   const [generatedLink, setGeneratedLink] = useState<string>('');
@@ -212,6 +218,24 @@ export default function ShareButton({
                     onCheckedChange={(checked) => setShareOptions(prev => ({...prev, mostrarRedeAtual: checked}))}
                   />
                   <Label htmlFor="redeAtual">Rede Atual</Label>
+                </div>
+                
+                <div className="flex items-center space-x-2">
+                  <Switch 
+                    id="bronzeMais" 
+                    checked={shareOptions.mostrarBronzeMais}
+                    onCheckedChange={(checked) => setShareOptions(prev => ({...prev, mostrarBronzeMais: checked}))}
+                  />
+                  <Label htmlFor="bronzeMais">Bronze Mais</Label>
+                </div>
+                
+                <div className="flex items-center space-x-2">
+                  <Switch 
+                    id="prontoSocorro" 
+                    checked={shareOptions.mostrarProntoSocorro}
+                    onCheckedChange={(checked) => setShareOptions(prev => ({...prev, mostrarProntoSocorro: checked}))}
+                  />
+                  <Label htmlFor="prontoSocorro">Pronto Socorro</Label>
                 </div>
               </div>
             </div>

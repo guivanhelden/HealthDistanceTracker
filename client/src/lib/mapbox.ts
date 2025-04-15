@@ -1,24 +1,21 @@
 import mapboxgl from 'mapbox-gl';
 
-// Mapbox access token
-const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || 'pk.eyJ1IjoiZ3VpdmFuaGVsZGVuIiwiYSI6ImNtOGRpOHA0dTA2eXYybnB1cGZpdXE5amoifQ.AaT1j9pOdFhZwKS-H2Xfcw';
+// Configurar o token do Mapbox
+mapboxgl.accessToken = 'pk.eyJ1IjoiZ3VpdmFuaGVsZGVuIiwiYSI6ImNtOGRpOHA0dTA2eXYybnB1cGZpdXE5amoifQ.AaT1j9pOdFhZwKS-H2Xfcw';
 
-// Set up Mapbox access token
-mapboxgl.accessToken = MAPBOX_TOKEN;
-
-// Default center locations for major cities
+// Coordenadas de cidades importantes
 export const CITY_COORDINATES = {
   'São Paulo': { lat: -23.5505, lng: -46.6333 },
   'Rio de Janeiro': { lat: -22.9068, lng: -43.1729 },
   'Brasília': { lat: -15.7801, lng: -47.9292 }
-};
+} as const;
 
 export interface MapLocation {
   id: number;
   latitude: number;
   longitude: number;
   name: string;
-  type: 'cliente' | 'prestador' | 'rede_atual';
+  type: 'cliente' | 'prestador' | 'rede_atual' | 'bronzeMais';
   details?: Record<string, any>;
 }
 
@@ -51,8 +48,11 @@ export function initializeMap(containerId: string, options: {
 
 /**
  * Adds markers for clients and providers to the map
+ * @param map - The mapbox map instance
+ * @param locations - Array of locations to add markers for
+ * @param showProntoSocorro - Whether to show pronto socorro markers (default: true)
  */
-export function addMarkersToMap(map: mapboxgl.Map, locations: MapLocation[]): mapboxgl.Marker[] {
+export function addMarkersToMap(map: mapboxgl.Map, locations: MapLocation[], showProntoSocorro = true): mapboxgl.Marker[] {
   const markers: mapboxgl.Marker[] = [];
 
   locations.forEach(location => {
@@ -62,29 +62,73 @@ export function addMarkersToMap(map: mapboxgl.Map, locations: MapLocation[]): ma
     // Create element for marker
     const el = document.createElement('div');
     el.className = `marker ${
-      location.type === 'cliente' 
-        ? 'marker-client' 
-        : location.type === 'prestador' 
-          ? 'marker-provider' 
-          : 'marker-rede-atual'
+      location.type === 'cliente'
+        ? 'marker-client'
+        : location.type === 'prestador'
+          ? 'marker-provider'
+          : location.type === 'rede_atual'
+            ? 'marker-rede-atual'
+            : location.type === 'bronzeMais'
+              ? 'marker-bronze-mais'
+              : ''
     }`;
     
     // Style the marker
-    el.style.width = '20px';
-    el.style.height = '20px';
-    el.style.borderRadius = '50%';
+    el.style.width = location.type === 'cliente' ? '25px' : '20px';
+    el.style.height = location.type === 'cliente' ? '25px' : '20px';
     
-    // Cor para cada tipo de localização
-    if (location.type === 'cliente') {
-      el.style.backgroundColor = '#3b82f6'; // Azul
-    } else if (location.type === 'prestador') {
-      el.style.backgroundColor = '#ef4444'; // Vermelho
-    } else if (location.type === 'rede_atual') {
-      el.style.backgroundColor = '#f97316'; // Laranja
+    // Verificar se é prestador de pronto socorro adulto
+    const isProntoSocorro = location.details?.especialidade === 'PRONTO SOCORRO ADULTO';
+    
+    // Se for Pronto Socorro e showProntoSocorro for false, pular este marcador
+    if (isProntoSocorro && !showProntoSocorro) {
+      return;
     }
     
-    el.style.border = '2px solid white';
-    el.style.boxShadow = '0 0 0 1px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.2)';
+    if (isProntoSocorro) {
+      // Usar emoji de ambulância
+      el.style.borderRadius = '50%';
+      el.style.width = '40px';
+      el.style.height = '40px';
+      // Usar emoji de ambulância
+      el.innerHTML = '🚑';
+      el.style.fontSize = '36px';
+      el.style.display = 'flex';
+      el.style.alignItems = 'center';
+      el.style.justifyContent = 'center';
+      el.style.background = 'white';
+      
+      // Adicionar borda colorida para diferenciar os tipos
+      if (location.type === 'prestador') {
+        el.style.border = '3px solid #ef4444'; // Vermelho para Prestadores
+      } else if (location.type === 'rede_atual') {
+        el.style.border = '3px solid #f97316'; // Laranja para Prestadores Rede Atual
+      }
+      
+      el.style.boxShadow = '0 0 0 1px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.2)';
+    } else if (location.type === 'cliente') {
+      // Usar ícone de pessoa para cliente
+      el.style.borderRadius = '0';
+      el.style.background = `url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%233b82f6" width="25" height="25"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>')`;      
+      el.style.backgroundSize = 'cover';
+      el.style.border = '0';
+      el.style.boxShadow = 'none';
+    } else {
+      // Cor normal para outros tipos
+      el.style.borderRadius = '50%';
+      
+      // Cor para cada tipo de localização
+      if (location.type === 'prestador') {
+        el.style.backgroundColor = '#ef4444'; // Vermelho
+      } else if (location.type === 'rede_atual') {
+        el.style.backgroundColor = '#f97316'; // Laranja
+      } else if (location.type === 'bronzeMais') {
+        el.style.backgroundColor = '#800020'; // Bordô
+      }
+      
+      el.style.border = '2px solid white';
+      el.style.boxShadow = '0 0 0 1px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.2)';
+    }
     
     // Create a popup with location info
     const popup = new mapboxgl.Popup({ offset: 25 })
@@ -151,8 +195,12 @@ function createGeoJSONCircle(center: [number, number], radiusKm: number): GeoJSO
 
 /**
  * Adds a circle around a provider indicating coverage area
+ * @param map - The mapbox map instance
+ * @param location - The location to add circle for
+ * @param radiusKm - Radius in kilometers (default: 7)
+ * @param color - Optional color for the circle (default: #ef4444)
  */
-export function addProviderCircle(map: mapboxgl.Map, location: MapLocation, radiusKm = 7): void {
+export function addProviderCircle(map: mapboxgl.Map, location: MapLocation, radiusKm = 7, color = '#ef4444'): void {
   // Check if the map has the source already
   const sourceId = `circle-${location.id}`;
   if (map.getSource(sourceId)) {
@@ -175,7 +223,7 @@ export function addProviderCircle(map: mapboxgl.Map, location: MapLocation, radi
     type: 'fill',
     source: sourceId,
     paint: {
-      'fill-color': '#ef4444',
+      'fill-color': color,
       'fill-opacity': 0.15,
     }
   });
@@ -185,7 +233,7 @@ export function addProviderCircle(map: mapboxgl.Map, location: MapLocation, radi
     type: 'line',
     source: sourceId,
     paint: {
-      'line-color': '#ef4444',
+      'line-color': color,
       'line-width': 1,
       'line-opacity': 0.5
     }

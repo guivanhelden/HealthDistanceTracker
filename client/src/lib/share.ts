@@ -13,6 +13,8 @@ export function gerarLinkCompartilhamento(options: {
   mostrarClientes?: boolean;
   mostrarPrestadores?: boolean;
   mostrarRedeAtual?: boolean;
+  mostrarBronzeMais?: boolean;
+  mostrarProntoSocorro?: boolean;
   distanciaMaxima?: number;
 }) {
   // URL base (domínio atual)
@@ -41,6 +43,14 @@ export function gerarLinkCompartilhamento(options: {
   
   if (options.mostrarRedeAtual !== undefined) {
     url.searchParams.append('redeAtual', options.mostrarRedeAtual ? '1' : '0');
+  }
+  
+  if (options.mostrarBronzeMais !== undefined) {
+    url.searchParams.append('bronzeMais', options.mostrarBronzeMais ? '1' : '0');
+  }
+  
+  if (options.mostrarProntoSocorro !== undefined) {
+    url.searchParams.append('prontoSocorro', options.mostrarProntoSocorro ? '1' : '0');
   }
   
   if (options.distanciaMaxima !== undefined) {
