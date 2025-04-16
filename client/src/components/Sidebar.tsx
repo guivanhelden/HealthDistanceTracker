@@ -25,51 +25,51 @@ export default function Sidebar() {
         <ul className="space-y-2">
           <li>
             <Link href="/">
-              <a className={`flex items-center p-2 rounded-md ${isActive('/') ? 'bg-slate-700 text-white' : 'text-slate-300 hover:bg-slate-700'}`}>
+              <div className={`flex items-center p-2 rounded-md cursor-pointer ${isActive('/') ? 'bg-slate-700 text-white' : 'text-slate-300 hover:bg-slate-700'}`}>
                 <Home className="h-5 w-5 mr-3" />
                 Dashboard
-              </a>
+              </div>
             </Link>
           </li>
           <li>
             <Link href="/relatorios">
-              <a className={`flex items-center p-2 rounded-md ${isActive('/relatorios') ? 'bg-slate-700 text-white' : 'text-slate-300 hover:bg-slate-700'}`}>
+              <div className={`flex items-center p-2 rounded-md cursor-pointer ${isActive('/relatorios') ? 'bg-slate-700 text-white' : 'text-slate-300 hover:bg-slate-700'}`}>
                 <FileText className="h-5 w-5 mr-3" />
                 Relatórios
-              </a>
+              </div>
             </Link>
           </li>
           <li>
             <Link href="/configuracoes">
-              <a className={`flex items-center p-2 rounded-md ${isActive('/configuracoes') ? 'bg-slate-700 text-white' : 'text-slate-300 hover:bg-slate-700'}`}>
+              <div className={`flex items-center p-2 rounded-md cursor-pointer ${isActive('/configuracoes') ? 'bg-slate-700 text-white' : 'text-slate-300 hover:bg-slate-700'}`}>
                 <Settings className="h-5 w-5 mr-3" />
                 Configurações
-              </a>
+              </div>
             </Link>
           </li>
           <li className="pt-6">
             <p className="text-xs text-slate-500 uppercase px-2 mb-2">Cidades Principais</p>
             <Link href="/?city=São Paulo">
-              <a className="flex items-center p-2 rounded-md text-slate-300 hover:bg-slate-700">
+              <div className="flex items-center p-2 rounded-md text-slate-300 hover:bg-slate-700 cursor-pointer">
                 <span className="w-2 h-2 rounded-full bg-green-500 mr-3"></span>
                 São Paulo
-              </a>
+              </div>
             </Link>
           </li>
           <li>
             <Link href="/?city=Rio de Janeiro">
-              <a className="flex items-center p-2 rounded-md text-slate-300 hover:bg-slate-700">
+              <div className="flex items-center p-2 rounded-md text-slate-300 hover:bg-slate-700 cursor-pointer">
                 <span className="w-2 h-2 rounded-full bg-blue-500 mr-3"></span>
                 Rio de Janeiro
-              </a>
+              </div>
             </Link>
           </li>
           <li>
             <Link href="/?city=Brasília">
-              <a className="flex items-center p-2 rounded-md text-slate-300 hover:bg-slate-700">
+              <div className="flex items-center p-2 rounded-md text-slate-300 hover:bg-slate-700 cursor-pointer">
                 <span className="w-2 h-2 rounded-full bg-purple-500 mr-3"></span>
                 Brasília
-              </a>
+              </div>
             </Link>
           </li>
         </ul>
